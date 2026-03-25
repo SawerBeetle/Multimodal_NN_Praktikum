@@ -19,6 +19,7 @@ dependencies = [
     "setuptools (<70.0.0)",
     "transformers (>=5.3.0,<6.0.0)",
     "scikit-learn (>=1.8.0,<2.0.0)",
+    "joblib (>=1.5.3,<2.0.0)",
 ]
 
 
