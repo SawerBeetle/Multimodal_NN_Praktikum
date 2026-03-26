@@ -7,9 +7,11 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
-from torch.utils.data import DataLoader #, Subset
+from torch.utils.data import DataLoader, Subset
 from tqdm.auto import tqdm
 import yaml
+
+from utils import MultimodalModel
 
 """  
 Импортируем конфиг и данные. 
@@ -98,7 +100,7 @@ loader_test = DataLoader(
 Помимо MAE, она должна выдать ещё и пять объектов с наихудшим прогнозом. 
 """
 # определим код для тестирования
-def model_test(model, test_loader, images):
+def test(model, test_loader, images):
     # определить, с каким устройством (cpu/cuda) работаем
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -198,3 +200,5 @@ def model_test(model, test_loader, images):
     plt.show()
     
     return results_df
+
+test(model=MultimodalModel(config_notebook), test_loader=loader_test, images=images_test)
