@@ -2,7 +2,7 @@
 images/
 .venv/
 imports/
-weights/
+model/
 =======
 # Byte-compiled / optimized / DLL files
 __pycache__/
