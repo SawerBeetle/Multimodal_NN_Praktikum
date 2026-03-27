@@ -1,20 +1,20 @@
-import os
-
-from functools import partial
-import itertools
-import joblib
-from matplotlib import pyplot as plt
-import numpy as np
-import pandas as pd
-import torch
-from torch.utils.data import DataLoader, Subset
-from tqdm.auto import tqdm
-import yaml
-
-from dataset import MultimodalDataset
-from utils import MultimodalModel
-
 if __name__ == "__main__":
+    import os
+
+    from functools import partial
+    import itertools
+    import joblib
+    from matplotlib import pyplot as plt
+    import numpy as np
+    import pandas as pd
+    import torch
+    from torch.utils.data import DataLoader, Subset
+    from tqdm.auto import tqdm
+    import yaml
+
+    from dataset import MultimodalDataset
+    from utils import MultimodalModel
+
     """  
     Импортируем конфиг и данные. 
     """
