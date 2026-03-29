@@ -1,19 +1,21 @@
+import os
+
+from functools import partial
+import itertools
+import joblib
+from matplotlib import pyplot as plt
+import numpy as np
+import pandas as pd
+import torch
+from torchvision.datasets import ImageFolder
+from torch.utils.data import DataLoader, Subset
+from tqdm.auto import tqdm
+import yaml
+
+from dataset import MultimodalDataset
+from utils import MultimodalModel
+
 if __name__ == "__main__":
-    import os
-
-    from functools import partial
-    import itertools
-    import joblib
-    from matplotlib import pyplot as plt
-    import numpy as np
-    import pandas as pd
-    import torch
-    from torch.utils.data import DataLoader, Subset
-    from tqdm.auto import tqdm
-    import yaml
-
-    from dataset import MultimodalDataset
-    from utils import MultimodalModel
 
     """  
     Импортируем конфиг и данные. 
@@ -31,11 +33,39 @@ if __name__ == "__main__":
     ds_test = joblib.load('imports/ds_test.pkl')
     images_test = joblib.load('imports/images_test.pkl')
 
+    images_path = os.path.join(os.getcwd(), 'data', 'images')
+    # загрузим фото
+    images_base = ImageFolder(images_path)
+
+    ingredients_path = os.path.join(os.getcwd(), 'data', 'ingredients.csv')
+    ingredients = pd.read_csv(ingredients_path)
+    # для замены ID ингредиентов на их названия создаём словарь
+    ingredients_dict = dict(zip(ingredients['id'], ingredients['ingr']))
+
+    # определяем функцию для замены ID на названия
+    def id_to_ingr(data): 
+        # разделяем ID по ';'
+        data = data.split(';')
+        # берём три последних символа в ID
+        data = [ingr[-3:] for ingr in data]
+
+        # создаём пустой список для названий
+        ingr_text = []
+        # Меняем ID на название, 
+        # добавляем название в 'ingr_text'. 
+        for ingr in data: 
+            ingr_text.append(ingredients_dict[int(ingr)])
+
+        return(ingr_text)
+    
+    dishes_test['ingredients'] = dishes_test['ingredients'].map(id_to_ingr)
+
+
     """  
     Загрузим веса модели.
     """
     trained_model = MultimodalModel(config_notebook)
-    weights_path = os.path.join(os.getcwd(), 'model' "weights.pth")
+    weights_path = os.path.join(os.getcwd(), 'model/' "weights.pth")
     weights = torch.load(weights_path) 
 
     # Если сохраняли через trainer или просто state_dict
@@ -44,6 +74,8 @@ if __name__ == "__main__":
     else:
         trained_model.load_state_dict(weights)
 
+    for param in trained_model.parameters():
+        param.requires_grad = False
     trained_model.eval()
 
     """Если код отлаживается, то для ускорения работы на локальной машине 
@@ -118,7 +150,6 @@ if __name__ == "__main__":
     """
     # определим код для тестирования
     def test_multimodal_model(model, test_loader, images):
-        print("--- ЗАПУЩЕН ТЕСТ ---")
         # определить, с каким устройством (cpu/cuda) работаем
         DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -150,12 +181,14 @@ if __name__ == "__main__":
                 calories = batch['calories'].to(DEVICE)
                 mass = batch['mass'].to(DEVICE)
                 # ID объектов
-                ids = batch['dish_id'].to(DEVICE)
+                ids = batch['id']
 
                 # получим результат работы модели (калорийность на грамм)
                 result = model(**inputs)
+                # print(len(result))
+
                 # рассчитаем калорийность блюда целиком
-                results_total = result * mass
+                results_total = result.squeeze(-1) * mass
                 # рассчитаем абсолютные отклонения
                 absolute_errors = torch.abs(results_total - calories)
 
@@ -165,7 +198,7 @@ if __name__ == "__main__":
                 наружу. 
                 """
                 # ID
-                all_ids.extend(ids.tolist())
+                all_ids.extend(ids)
                 # реальная калорийность
                 all_calories.extend(calories.tolist())
                 # предсказанная калорийность
@@ -173,15 +206,6 @@ if __name__ == "__main__":
                 # абсолютные ошибки 
                 all_absolute_errors.extend(absolute_errors.tolist())
             
-            # преобразуем списки так, чтобы не было вложений
-            # ID
-            all_ids = list(itertools.chain.from_iterable(all_ids))
-            # реальная калорийность
-            all_calories = list(itertools.chain.from_iterable(all_calories))
-            # предсказанная калорийность
-            all_predicted_calories = list(itertools.chain.from_iterable(all_predicted_calories))
-            # абсолютные ошибки
-            all_absolute_errors = list(itertools.chain.from_iterable(all_absolute_errors))
             # создадим фрейм 
             results_df = pd.DataFrame({
                 'dish_id': all_ids, 
@@ -194,36 +218,39 @@ if __name__ == "__main__":
 
             # рассчитываем MAE для тестового набора
             test_mae = sum(all_absolute_errors) / len(all_absolute_errors)
+            # test_mae = sum(list(itertools.chain.from_iterable(all_absolute_errors))) / len(all_absolute_errors)
 
+        results_worst = results_df.head()
         print(f"Значение MAE для тестового набора равно {test_mae:.4f}. ")
         print('-' * 15)
         print('Блюда с наихудшим предсказанием калорийности: ')
-
-        # вызовем индексы этих блюд в 'images', соответствующие 'dish_id'
-        worst_predicted = []
-        for dish_id in results_df['dish_id']: 
-            worst_predicted.append(images.class_to_idx[dish_id])
-
-        # картинки на экран
-        fig = plt.figure(figsize=(10, 20))
-        index = 1
-        for idx in worst_predicted: 
-            img, label = images[idx]
-            plt.subplot(1, 5, index)
-            plt.imshow(img)
-            plt.title(images.classes[label])    
-            plt.axis('off')
-            index += 1
-        plt.tight_layout() 
-        plt.show()
+        display(results_worst)
         
-        return results_df
+        return results_worst['dish_id']
     
-    # 1. Замораживаем абсолютно все параметры
-    for param in trained_model.parameters():
-        param.requires_grad = False
+    worst_classes = test_multimodal_model(model=trained_model, test_loader=loader_test, images=images_test)
 
-    # 2. Принудительно переводим в режим оценки
-    trained_model.eval()
+    worst_classes = list(worst_classes)
+    worst_classes_idx = []
+    for id in worst_classes: 
+        worst_classes_idx.append(images_base.class_to_idx[id])
 
-    test_multimodal_model(model=trained_model, test_loader=loader_test, images=images_test)
+    # картинки на экран
+    fig = plt.figure(figsize=(10, 20))
+    index = 1
+    for idx in worst_classes_idx: 
+        img, label = images_base[idx]
+        plt.subplot(1, 5, index)
+        plt.imshow(img)
+        plt.title(worst_classes[index - 1])    
+        plt.axis('off')
+        index += 1
+    plt.tight_layout() 
+    plt.show()
+
+    for bad_class in worst_classes:
+        print(bad_class, ': ingredients')
+        print(
+            dishes_test.loc[dishes_test['dish_id'] == bad_class, 'ingredients'].tolist()
+            )
+        print('-' * 15)

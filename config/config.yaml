@@ -1,5 +1,4 @@
-mode: 'preliminar'
-save_weights: True
+mode: 'train'
 seed: 42
 text_model: "bert-base-uncased"
 image_model: 'tf_efficientnet_b0'

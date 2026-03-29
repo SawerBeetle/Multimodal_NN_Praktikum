@@ -172,11 +172,14 @@ class MultimodalModel(nn.Module):
         text_emb = self.text_proj(text_features)
         image_emb = self.image_proj(image_features)
 
+        # print(f"Text shape: {text_emb.shape}")   # Ожидаем [8, 256]
+        # print(f"Image shape: {image_emb.shape}") # Ожидаем [8, 256]
         # объединение результатов работы моделей
         fused_emb = text_emb * image_emb
         
         # расчёт значений целевой переменной моделью-регрессором
         result = self.regressor(fused_emb)
+        # print(f"Result shape: {result.shape}") 
         
         return result
 
@@ -208,6 +211,8 @@ def validate(model, val_loader, device):
 
             # получим результат работы модели (калорийность на грамм)
             result = model(**inputs)
+            # print(f"Result_val shape: {result.shape}") 
+
             # рассчитаем калорийность блюда целиком
             results_total = result * mass
             # рассчитаем абсолютные отклонения
@@ -360,5 +365,5 @@ def train(config, train_dataset, val_dataset):
                 )
             # завершаем работу функции 'train'. 
             break
-
-train(config_notebook, train_dataset=ds_train, val_dataset=ds_val)
+if __name__ == '__main__':
+    train(config_notebook, train_dataset=ds_train, val_dataset=ds_val)
