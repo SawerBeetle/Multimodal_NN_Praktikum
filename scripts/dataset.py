@@ -3,7 +3,7 @@ import sys
 
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
-from beeply import notes
+# from beeply import notes
 # from functools import partial
 import joblib
 import numpy as np
@@ -166,8 +166,8 @@ class MultimodalDataset(Dataset):
         # сравним количество объектов во фрейме и наборе фото
         if num_rows != num_images: 
             print('Количество изображений и описаний не совпадают.')
-            beeper = notes.beeps(1000)
-            beeper.hear('A_')
+            # beeper = notes.beeps(1000)
+            # beeper.hear('A_')
             # прерывание выполнения кода, потому что ничего хорошего уже не будет, надо чинить
             sys.exit()
         else: 

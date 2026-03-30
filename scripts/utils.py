@@ -1,7 +1,7 @@
 import os
 import sys
 
-from beeply import notes
+# from beeply import notes
 from functools import partial
 import itertools
 import joblib
@@ -118,8 +118,8 @@ class MultimodalModel(nn.Module):
             # если модель не bert_base_uncased, то превать выполнение и изменить код
             else: 
                 print('Измените размораживаемые слои текстовой модели. ')
-                beeper = notes.beeps(1000)
-                beeper.hear('A_')
+                # beeper = notes.beeps(1000)
+                # beeper.hear('A_')
                 # прерывание выполнения кода для изменения размораживаемых слоёв
                 sys.exit()    
 
@@ -127,27 +127,29 @@ class MultimodalModel(nn.Module):
         for param in self.image_model.parameters(): 
             param.requires_grad = False 
         # разморозка последнего свёрточного блока модели для изображений
-        for param in self.image_model.conv_head.parameters(): 
+        # закомментированное под tf_efficient_b0, раскомментированное под resnet50
+        # for param in self.image_model.conv_head.parameters(): 
+        for param in self.image_model.fc.parameters(): 
             if config['image_model'] == 'tf_efficientnet_b0': 
                 param.requires_grad = True
-            # если модель не tf_efficient_b0, то превать выполнение и изменить код
+            # если модель не resnet50, то превать выполнение и изменить код
             else: 
                 print('Измените размораживаемые слои модели для изображений. ')
-                beeper = notes.beeps(1000)
-                beeper.hear('A_')
+                # beeper = notes.beeps(1000)
+                # beeper.hear('A_')
                 # прерывание выполнения кода для изменения размораживаемых слоёв
                 sys.exit()    
         # разморозка последнего блока batch normalization модели для изображений
-        for param in self.image_model.bn2.parameters(): 
-            if config['image_model'] == 'tf_efficientnet_b0': 
-                param.requires_grad = True
+        # for param in self.image_model.bn2.parameters(): 
+        #     if config['image_model'] == 'tf_efficientnet_b0': 
+        #         param.requires_grad = True
             # если модель не tf_efficient_b0, то превать выполнение и изменить код
-            else: 
-                print('Измените размораживаемые слои модели для изображений. ')
-                beeper = notes.beeps(1000)
-                beeper.hear('A_')
-                # прерывание выполнения кода для изменения размораживаемых слоёв
-                sys.exit()    
+            # else: 
+            #     print('Измените размораживаемые слои модели для изображений. ')
+            #     # beeper = notes.beeps(1000)
+            #     # beeper.hear('A_')
+            #     # прерывание выполнения кода для изменения размораживаемых слоёв
+            #     sys.exit()    
 
         # приведение выходов обеих моделей к одной размерности
         self.text_proj = nn.Linear(self.text_model.config.hidden_size, 256)
@@ -348,16 +350,16 @@ def train(config, train_dataset, val_dataset):
         print(f"Epoch {epoch+1}/{config['epochs']} | train loss: {total_loss / len(train_loader):.4f}")
         
         # Если целевое значение MAE достигнуто, то...
-        if val_mae < VAL_MAE: 
+        if val_mae < VAL_MAE or epoch == config['epochs']: 
             # ...выводим на экран сообщение об этом, ...
             print('-' * 15)
             print('Обучение завершено.')
             # ...подаём звуковой сигнал, ... 
-            beeper = notes.beeps()
-            beeper.hear('C4', 200)
-            beeper.hear('C4', 200)
-            beeper.hear('C4', 200)
-            beeper.hear('G4', 600)
+            # beeper = notes.beeps()
+            # beeper.hear('C4', 200)
+            # beeper.hear('C4', 200)
+            # beeper.hear('C4', 200)
+            # beeper.hear('G4', 600)
             # ...сохраняем веса и ... 
             torch.save(
                 model.state_dict(), 
