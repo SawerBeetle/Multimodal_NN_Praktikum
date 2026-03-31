@@ -157,11 +157,12 @@ class MultimodalModel(nn.Module):
 
         # определить регрессор
         self.regressor = nn.Sequential(
-            nn.Linear(config['hidden_dim'], config['hidden_dim'] // 2),      
-            nn.LayerNorm(config['hidden_dim'] // 2),         
+            nn.Linear(2 * config['hidden_dim'], config['hidden_dim']),      
+            # nn.LayerNorm(config['hidden_dim']),
+            nn.BatchNorm1d(config['hidden_dim']),         
             nn.ReLU(),                           
             nn.Dropout(0.15),                    
-            nn.Linear(config['hidden_dim'] // 2, 1) 
+            nn.Linear(config['hidden_dim'], 1) 
         )
 
     # прямой проход
@@ -177,7 +178,7 @@ class MultimodalModel(nn.Module):
         # print(f"Text shape: {text_emb.shape}")   # Ожидаем [8, 256]
         # print(f"Image shape: {image_emb.shape}") # Ожидаем [8, 256]
         # объединение результатов работы моделей
-        fused_emb = text_emb * image_emb
+        fused_emb = torch.cat((text_emb, image_emb), dim=1)
         
         # расчёт значений целевой переменной моделью-регрессором
         result = self.regressor(fused_emb)
@@ -261,7 +262,9 @@ def train(config, train_dataset, val_dataset):
         {'params': model.image_model.parameters(), 'lr': float(config['image_lr'])},
         {'params': model.regressor.parameters(), 'lr': float(config['regressor_lr'])}
     ])
-    
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, mode='min', factor=0.5, patience=3
+    )
     # определим функцию вычисления потерь
     criterion = nn.L1Loss()
     
@@ -348,9 +351,10 @@ def train(config, train_dataset, val_dataset):
         # выводим значения метрик (MAE и loss)
         print(f"Epoch {epoch+1}/{config['epochs']} | train MAE: {train_mae:.4f} | val MAE: {val_mae:.4f}")
         print(f"Epoch {epoch+1}/{config['epochs']} | train loss: {total_loss / len(train_loader):.4f}")
-        
+        scheduler.step(val_mae) 
+
         # Если целевое значение MAE достигнуто, то...
-        if val_mae < VAL_MAE or epoch == config['epochs']: 
+        if val_mae < VAL_MAE or epoch == config['epochs'] - 1: 
             # ...выводим на экран сообщение об этом, ...
             print('-' * 15)
             print('Обучение завершено.')

@@ -70,9 +70,9 @@ if __name__ == "__main__":
 
     # Если сохраняли через trainer или просто state_dict
     if 'state_dict' in weights:
-        trained_model.load_state_dict(weights['state_dict'])
+        trained_model.load_state_dict(weights['state_dict'], strict=False)
     else:
-        trained_model.load_state_dict(weights)
+        trained_model.load_state_dict(weights, strict=False)
 
     for param in trained_model.parameters():
         param.requires_grad = False
