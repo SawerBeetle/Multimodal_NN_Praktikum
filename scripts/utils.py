@@ -37,7 +37,7 @@ ds_val = joblib.load('imports/ds_val.pkl')
 """
 if config_notebook['mode'] == 'preliminar': 
     BATCH_SIZE = 8
-    VAL_MAE = 180
+    VAL_MAE = 70
 else: 
     BATCH_SIZE = 64
     VAL_MAE = 50
@@ -323,16 +323,16 @@ def train(config, train_dataset, val_dataset):
             optimizer.zero_grad()
 
             # получим результат работы модели (калорийность на грамм)
-            results = model(**inputs)
+            result = model(**inputs)
             # рассчитаем калорийность блюда целиком
-            results_total = results * mass
+            results_total = result * mass
             # рассчитаем абсолютные отклонения
             absolute_errors = torch.abs(results_total - calories)
             # добавим рассчитанные абс. отклонения в список их значений по эпохе
             all_absolute_errors.extend(absolute_errors.tolist())
 
             # рассчитаем потери
-            loss = criterion(results.squeeze(-1), calories_per_g)
+            loss = criterion(result.squeeze(-1), calories_per_g)
             # выполним обратный проход
             loss.backward()
             # обновим веса

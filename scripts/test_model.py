@@ -65,6 +65,9 @@ if __name__ == "__main__":
     Загрузим веса модели.
     """
     trained_model = MultimodalModel(config_notebook)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    trained_model.to(device)
+
     weights_path = os.path.join(os.getcwd(), 'model/' "weights.pth")
     weights = torch.load(weights_path) 
 
@@ -84,7 +87,7 @@ if __name__ == "__main__":
     """
     if config_notebook['mode'] == 'preliminar': 
         BATCH_SIZE = 8
-        VAL_MAE = 180
+        VAL_MAE = 70
     else: 
         BATCH_SIZE = 64
         VAL_MAE = 50

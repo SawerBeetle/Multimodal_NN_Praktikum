@@ -3,14 +3,13 @@ import sys
 
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
-# from beeply import notes
 # from functools import partial
 import joblib
 import numpy as np
 import pandas as pd
 import timm
 import torch
-from torch.utils.data import Dataset, Subset #, DataLoader
+from torch.utils.data import Dataset, Subset
 from torchvision.datasets import ImageFolder
 from transformers import AutoTokenizer
 import yaml
