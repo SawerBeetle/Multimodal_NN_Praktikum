@@ -3,7 +3,6 @@ import sys
 
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
-# from functools import partial
 import joblib
 import numpy as np
 import pandas as pd
@@ -11,7 +10,7 @@ import timm
 import torch
 from torch.utils.data import Dataset, Subset
 from torchvision.datasets import ImageFolder
-from transformers import AutoTokenizer
+# from transformers import AutoTokenizer
 import yaml
 
 """  
@@ -95,9 +94,9 @@ dishes_val['ingredients'] = dishes_val['ingredients'].map(id_to_ingr)
 dishes_test['ingredients'] = dishes_test['ingredients'].map(id_to_ingr)
 
 # рассчитать калорийность на грамм
-dishes_train['calories_per_g'] = dishes_train['total_calories'] / dishes_train['total_mass']
-dishes_val['calories_per_g'] = dishes_val['total_calories'] / dishes_val['total_mass']
-dishes_test['calories_per_g'] = dishes_test['total_calories'] / dishes_test['total_mass']
+# dishes_train['calories_per_g'] = dishes_train['total_calories'] / dishes_train['total_mass']
+# dishes_val['calories_per_g'] = dishes_val['total_calories'] / dishes_val['total_mass']
+# dishes_test['calories_per_g'] = dishes_test['total_calories'] / dishes_test['total_mass']
 
 """  
 Исходный формат данных и ранее проведённая обработка подразумевают, 
@@ -112,11 +111,11 @@ class MultimodalDataset(Dataset):
         # изображения
         self.images = images
         # текстовая модель
-        self.text_model = config_notebook['text_model']
+        # self.text_model = config_notebook['text_model']
         # конфиги модели для обработки фото
         self.image_cfg = timm.get_pretrained_cfg(config_notebook['image_model'])
         # токенизатор
-        self.tokenizer = AutoTokenizer.from_pretrained(config_notebook['text_model'])
+        # self.tokenizer = AutoTokenizer.from_pretrained(config_notebook['text_model'])
         # аугментатор
         if mode == 'train': 
             self.augmentator = A.Compose([
@@ -165,9 +164,6 @@ class MultimodalDataset(Dataset):
         # сравним количество объектов во фрейме и наборе фото
         if num_rows != num_images: 
             print('Количество изображений и описаний не совпадают.')
-            # beeper = notes.beeps(1000)
-            # beeper.hear('A_')
-            # прерывание выполнения кода, потому что ничего хорошего уже не будет, надо чинить
             sys.exit()
         else: 
             return num_rows
@@ -202,31 +198,31 @@ class MultimodalDataset(Dataset):
         image = augmented['image'] 
 
         # get ingredients 
-        ingredients = row['ingredients']
-        ingredients = ', '.join([str(i) for i in ingredients])
-        # tokenize text
-        ingredients_tok = self.tokenizer(
-            ingredients, 
-            return_tensors='pt', 
-            padding='max_length', 
-            truncation=True
-            )
-        # get input_ids (tokenized ingredients) & attention_mask
-        input_ids = ingredients_tok['input_ids'].squeeze(0)
-        attention_mask = ingredients_tok['attention_mask'].squeeze(0)
+        # ingredients = row['ingredients']
+        # ingredients = ', '.join([str(i) for i in ingredients])
+        # # tokenize text
+        # ingredients_tok = self.tokenizer(
+        #     ingredients, 
+        #     return_tensors='pt', 
+        #     padding='max_length', 
+        #     truncation=True
+        #     )
+        # # get input_ids (tokenized ingredients) & attention_mask
+        # input_ids = ingredients_tok['input_ids'].squeeze(0)
+        # attention_mask = ingredients_tok['attention_mask'].squeeze(0)
 
         # get calories and mass
         calories = row['total_calories']
-        calories_per_g = row['calories_per_g']
+        # calories_per_g = row['calories_per_g']
         mass = row['total_mass']
 
         return{
             'id': image_id, 
             'image': image, 
-            'input_ids': input_ids, 
-            'attention_mask': attention_mask, 
+            # 'input_ids': input_ids, 
+            # 'attention_mask': attention_mask, 
             'calories': calories, 
-            'calories_per_g': calories_per_g, 
+            # 'calories_per_g': calories_per_g, 
             'mass': mass
         }
 

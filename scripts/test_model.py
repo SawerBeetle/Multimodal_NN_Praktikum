@@ -12,8 +12,8 @@ from torch.utils.data import DataLoader, Subset
 from tqdm.auto import tqdm
 import yaml
 
-from dataset import MultimodalDataset
-from utils import MultimodalModel
+from dataset_new import MultimodalDataset
+from utils_new import MultimodalModel
 
 if __name__ == "__main__":
 
@@ -24,6 +24,7 @@ if __name__ == "__main__":
 
     with open(path_to_config, "r") as f:
         config_notebook = yaml.safe_load(f)
+    # config_notebook['hidden_dim'] = 256  # Явно задаем правильный размер
 
     # ingredients_path = os.path.join(os.getcwd(), 'data', 'ingredients.csv')
     # # загрузим таблицу ингредиентов
@@ -87,7 +88,7 @@ if __name__ == "__main__":
     """
     if config_notebook['mode'] == 'preliminar': 
         BATCH_SIZE = 8
-        VAL_MAE = 70
+        VAL_MAE = 250
     else: 
         BATCH_SIZE = 64
         VAL_MAE = 50
@@ -120,21 +121,21 @@ if __name__ == "__main__":
         # фото
         images = torch.stack([item['image'] for item in batch])
         # токенизированные названия ингредиентов и маска
-        input_ids = torch.stack([item['input_ids'] for item in batch])
-        attention_mask = torch.stack([item['attention_mask'] for item in batch])
+        # input_ids = torch.stack([item['input_ids'] for item in batch])
+        # attention_mask = torch.stack([item['attention_mask'] for item in batch])
         # калорийность (абсолютная и на грамм веса)
         calories = torch.FloatTensor([item['calories'] for item in batch])
-        calories_per_g = torch.FloatTensor([item['calories_per_g'] for item in batch])
+        # calories_per_g = torch.FloatTensor([item['calories_per_g'] for item in batch])
         # масса блюда
         mass = torch.FloatTensor([item['mass'] for item in batch])
 
         return{
             'id': id, 
             'image': images, 
-            'input_ids': input_ids, 
-            'attention_mask': attention_mask, 
+            # 'input_ids': input_ids, 
+            # 'attention_mask': attention_mask, 
             'calories': calories, 
-            'calories_per_g': calories_per_g, 
+            # 'calories_per_g': calories_per_g, 
             'mass': mass
         }    
 
@@ -176,8 +177,8 @@ if __name__ == "__main__":
                 ): 
                 # входные данные для работы моделей
                 inputs = {
-                    'input_ids': batch['input_ids'].to(DEVICE), 
-                    'attention_mask': batch['attention_mask'].to(DEVICE), 
+                    # 'input_ids': batch['input_ids'].to(DEVICE), 
+                    # 'attention_mask': batch['attention_mask'].to(DEVICE), 
                     'image': batch['image'].to(DEVICE)
                 }
                 # переменные для расчёта MAE
@@ -191,7 +192,7 @@ if __name__ == "__main__":
                 # print(len(result))
 
                 # рассчитаем калорийность блюда целиком
-                results_total = result.squeeze(-1) * mass
+                results_total = result.squeeze(-1) # * mass
                 # рассчитаем абсолютные отклонения
                 absolute_errors = torch.abs(results_total - calories)
 
@@ -220,8 +221,9 @@ if __name__ == "__main__":
             results_df = results_df.sort_values(by='absolute_error', ascending=False)
 
             # рассчитываем MAE для тестового набора
-            test_mae = sum(all_absolute_errors) / len(all_absolute_errors)
+            # test_mae = sum(all_absolute_errors) / len(all_absolute_errors)
             # test_mae = sum(list(itertools.chain.from_iterable(all_absolute_errors))) / len(all_absolute_errors)
+            test_mae = np.mean(all_absolute_errors)
 
         results_worst = results_df.head()
         print(f"Значение MAE для тестового набора равно {test_mae:.4f}. ")
@@ -231,7 +233,9 @@ if __name__ == "__main__":
         
         return results_worst['dish_id']
     
-    worst_classes = test_multimodal_model(model=trained_model, test_loader=loader_test, images=images_test)
+    worst_classes = test_multimodal_model(
+        model=trained_model, test_loader=loader_test, images=images_test
+        )
 
     worst_classes = list(worst_classes)
     worst_classes_idx = []

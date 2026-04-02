@@ -1,10 +1,9 @@
-mode: 'train'
+mode: 'preliminar'
 seed: 42
-text_model: "bert-base-uncased"
 image_model: 'resnet50'
-text_lr: 3e-4
-image_lr: 1e-3
-regressor_lr: 5e-3
-epochs: 4
+text_lr: 3e-2
+image_lr: 1e-1
+regressor_lr: 5e-1
+epochs: 100
 hidden_dim: 256
 save_path: 'model/weights.pth'
