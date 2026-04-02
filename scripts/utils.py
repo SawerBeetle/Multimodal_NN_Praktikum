@@ -11,9 +11,8 @@ import timm
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader #, Subset
+from torch.utils.data import DataLoader 
 from tqdm.auto import tqdm
-# from transformers import AutoModel
 import yaml
 
 """  
@@ -23,11 +22,6 @@ path_to_config = os.path.join(os.getcwd(), 'config', 'config.yaml')
 
 with open(path_to_config, "r") as f:
     config_notebook = yaml.safe_load(f)
-# config_notebook['hidden_dim'] = 256  # Явно задаем правильный размер
-
-# ingredients_path = os.path.join(os.getcwd(), 'data', 'ingredients.csv')
-# # загрузим таблицу ингредиентов
-# ingredients = pd.read_csv(ingredients_path)
 
 ds_train = joblib.load('imports/ds_train.pkl')
 ds_val = joblib.load('imports/ds_val.pkl')
@@ -70,22 +64,15 @@ def collate_fn(batch):
     id = [item['id'] for item in batch]
     # фото
     images = torch.stack([item['image'] for item in batch])
-    # токенизированные названия ингредиентов и маска
-    # input_ids = torch.stack([item['input_ids'] for item in batch])
-    # attention_mask = torch.stack([item['attention_mask'] for item in batch])
-    # калорийность (абсолютная и на грамм веса)
+    # калорийность 
     calories = torch.FloatTensor([item['calories'] for item in batch])
-    # calories_per_g = torch.FloatTensor([item['calories_per_g'] for item in batch])
     # масса блюда
     mass = torch.FloatTensor([item['mass'] for item in batch])
 
     return{
         'id': id, 
         'image': images, 
-        # 'input_ids': input_ids, 
-        # 'attention_mask': attention_mask, 
         'calories': calories, 
-        # 'calories_per_g': calories_per_g, 
         'mass': mass
     }   
 
@@ -93,8 +80,8 @@ def collate_fn(batch):
 Модель должна обеспечиват обработку текстовых данных 
 (список ингредиентов) и картинок. 
 
-Предполагается использование bert-base-uncased и tf_efficientnet_b0. 
-Названия моделей прописываются в конфиге, а вот разморозка последних 
+Предполагается использование resnet50. 
+Названия моделеи прописываются в конфиге, а вот разморозка последних 
 слоёв этих моделей прописана в __init__ и заточена именно под них. 
 Соответственно, если будут изменены модели в конфиге, 
 то код заморозки/разморозки придётся переписывать вручную. 
@@ -102,32 +89,16 @@ def collate_fn(batch):
 class MultimodalModel(nn.Module):
     def __init__(self, config):
         super().__init__()
-        # self.text_model = AutoModel.from_pretrained(config['text_model']) 
         self.image_model = timm.create_model(
             config['image_model'],
             pretrained=True,
             num_classes=0 
         )
         
-        # заморозка весов текстовой модели
-        # for param in self.text_model.parameters(): 
-        #     param.requires_grad = False
-        # разморозка последнего блока текстовой модели
-        # for param in self.text_model.pooler.parameters(): 
-        #     if config['text_model'] == 'bert-base-uncased': 
-        #         param.requires_grad = True
-            # если модель не bert_base_uncased, то превать выполнение и изменить код
-            # else: 
-            #     print('Измените размораживаемые слои текстовой модели. ')
-                # прерывание выполнения кода для изменения размораживаемых слоёв
-                # sys.exit()    
-
         # заморозка весов модели для изображений
         for param in self.image_model.parameters(): 
             param.requires_grad = False 
         # разморозка последнего свёрточного блока модели для изображений
-        # закомментированное под tf_efficient_b0, раскомментированное под resnet50
-        # for param in self.image_model.conv_head.parameters(): 
         for param in self.image_model.fc.parameters(): 
             if config['image_model'] == 'resnet50': 
                 param.requires_grad = True
@@ -145,14 +116,11 @@ class MultimodalModel(nn.Module):
                 # прерывание выполнения кода для изменения размораживаемых слоёв
                 sys.exit()    
         # приведение выходов обеих моделей к одной размерности
-        # self.text_proj = nn.Linear(self.text_model.config.hidden_size, 256)
-        self.image_proj = nn.Linear(self.image_model.num_features, 256)
+        self.image_proj = nn.Linear(self.image_model.num_features, config['hidden_dim'])
 
         # определить регрессор
         self.regressor = nn.Sequential(
-            # nn.Linear(2 * config['hidden_dim'], config['hidden_dim']),      
             nn.Linear(config['hidden_dim'], config['hidden_dim'] // 2),      
-            # nn.LayerNorm(config['hidden_dim']),
             nn.BatchNorm1d(config['hidden_dim'] // 2),         
             nn.ReLU(),                           
             nn.Dropout(0.15),                    
@@ -160,24 +128,14 @@ class MultimodalModel(nn.Module):
         )
 
     # прямой проход
-    # def forward(self, input_ids, attention_mask, image):
     def forward(self, image):
-        # работа моделей
-        # text_features = self.text_model(input_ids, attention_mask).last_hidden_state[:,  0, :]
+        # работа модели
         image_features = self.image_model(image)
 
-        # приведение результатов работы моделей к общему формату
-        # text_emb = self.text_proj(text_features)
         image_emb = self.image_proj(image_features)
 
-        # print(f"Text shape: {text_emb.shape}")   # Ожидаем [8, 256]
-        # print(f"Image shape: {image_emb.shape}") # Ожидаем [8, 256]
-        # объединение результатов работы моделей
-        # fused_emb = torch.cat((text_emb, image_emb), dim=1)
-        fused_emb = image_emb
-
         # расчёт значений целевой переменной моделью-регрессором
-        result = self.regressor(fused_emb)
+        result = self.regressor(image_emb)
         
         return result
 
@@ -195,20 +153,22 @@ def validate(model, val_loader, device):
     with torch.no_grad():
         # проходим по батчам
         for _, batch in enumerate(
-            tqdm(val_loader, total=len(val_loader), leave=False, desc="validate")
+            tqdm(
+                val_loader, 
+                total=len(val_loader), 
+                leave=False, 
+                display=True, 
+                position=0, 
+                desc="validate")
             ): 
             # входные данные для работы моделей
-            inputs = {
-                # 'input_ids': batch['input_ids'].to(device), 
-                # 'attention_mask': batch['attention_mask'].to(device), 
-                'image': batch['image'].to(device)
-            }
+            inputs = batch['image'].to(device)
             # переменные для расчёта MAE
             calories = batch['calories'].to(device)
             mass = batch['mass'].to(device)
 
             # получим результат работы модели (калорийность на грамм)
-            result = model(**inputs)
+            result = model(inputs)
             # print(f"Result_val shape: {result.shape}") 
 
             # рассчитаем калорийность блюда целиком
@@ -254,10 +214,10 @@ def train(config, train_dataset, val_dataset):
     # Оптимизатор с параметрами lr из конфига; особое внимание к float, 
     # т.к. из конфига lr почему-то грузится как str. 
     optimizer = optim.AdamW([
-        # {'params': model.text_model.parameters(), 'lr': float(config['text_lr'])}, 
         {'params': model.image_model.parameters(), 'lr': float(config['image_lr'])},
         {'params': model.regressor.parameters(), 'lr': float(config['regressor_lr'])}
     ])
+    # регуляция скорости обучения
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode='min', factor=0.5, patience=3
     )
@@ -283,8 +243,6 @@ def train(config, train_dataset, val_dataset):
     )
     
     # обучение
-    # определим метрику
-    # mae_metric = MeanAbsoluteError().to(DEVICE)
     # цикл прохода по эпохам
     for epoch in range(config['epochs']):
         # перевод модели в режим обучения
@@ -300,18 +258,14 @@ def train(config, train_dataset, val_dataset):
                 train_loader, 
                 total=len(train_loader), 
                 leave=False, 
+                display=True, 
+                position=0, 
                 desc=f"train epoch: {epoch + 1}"
                 )
             ): 
             # входные данные для работы моделей
-            inputs = {
-                # 'input_ids': batch['input_ids'].to(DEVICE), 
-                # 'attention_mask': batch['attention_mask'].to(DEVICE), 
-                'image': batch['image'].to(DEVICE)
-            }
+            inputs = batch['image'].to(DEVICE)
             # целевая переменная
-            # calories_per_g = batch['calories_per_g'].to(DEVICE)
-            # переменные для расчёта MAE
             calories = batch['calories'].to(DEVICE)
             mass = batch['mass'].to(DEVICE)
 
@@ -319,17 +273,13 @@ def train(config, train_dataset, val_dataset):
             optimizer.zero_grad()
 
             # получим результат работы модели (калорийность на грамм)
-            result = model(**inputs)
-            # рассчитаем калорийность блюда целиком
-            # results_total = results * mass
-            results_total = result
+            result = model(inputs)
             # рассчитаем абсолютные отклонения
-            absolute_errors = torch.abs(results_total - calories)
+            absolute_errors = torch.abs(result - calories)
             # добавим рассчитанные абс. отклонения в список их значений по эпохе
             all_absolute_errors.extend(absolute_errors.tolist())
 
             # рассчитаем потери
-            # loss = criterion(results.squeeze(-1), calories_per_g)
             loss = criterion(result.squeeze(-1), calories)
             # выполним обратный проход
             loss.backward()
@@ -356,12 +306,6 @@ def train(config, train_dataset, val_dataset):
             # ...выводим на экран сообщение об этом, ...
             print('-' * 15)
             print('Обучение завершено.')
-            # ...подаём звуковой сигнал, ... 
-            # beeper = notes.beeps()
-            # beeper.hear('C4', 200)
-            # beeper.hear('C4', 200)
-            # beeper.hear('C4', 200)
-            # beeper.hear('G4', 600)
             # ...сохраняем веса и ... 
             torch.save(
                 model.state_dict(), 
@@ -369,5 +313,6 @@ def train(config, train_dataset, val_dataset):
                 )
             # завершаем работу функции 'train'. 
             break
+
 if __name__ == '__main__':
     train(config_notebook, train_dataset=ds_train, val_dataset=ds_val)

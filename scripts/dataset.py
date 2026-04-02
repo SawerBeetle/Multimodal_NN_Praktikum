@@ -10,7 +10,6 @@ import timm
 import torch
 from torch.utils.data import Dataset, Subset
 from torchvision.datasets import ImageFolder
-# from transformers import AutoTokenizer
 import yaml
 
 """  
@@ -92,11 +91,6 @@ def id_to_ingr(data):
 dishes_train['ingredients'] = dishes_train['ingredients'].map(id_to_ingr)
 dishes_val['ingredients'] = dishes_val['ingredients'].map(id_to_ingr)
 dishes_test['ingredients'] = dishes_test['ingredients'].map(id_to_ingr)
-
-# рассчитать калорийность на грамм
-# dishes_train['calories_per_g'] = dishes_train['total_calories'] / dishes_train['total_mass']
-# dishes_val['calories_per_g'] = dishes_val['total_calories'] / dishes_val['total_mass']
-# dishes_test['calories_per_g'] = dishes_test['total_calories'] / dishes_test['total_mass']
 
 """  
 Исходный формат данных и ранее проведённая обработка подразумевают, 
@@ -197,32 +191,14 @@ class MultimodalDataset(Dataset):
         augmented = self.augmentator(image=image_np)
         image = augmented['image'] 
 
-        # get ingredients 
-        # ingredients = row['ingredients']
-        # ingredients = ', '.join([str(i) for i in ingredients])
-        # # tokenize text
-        # ingredients_tok = self.tokenizer(
-        #     ingredients, 
-        #     return_tensors='pt', 
-        #     padding='max_length', 
-        #     truncation=True
-        #     )
-        # # get input_ids (tokenized ingredients) & attention_mask
-        # input_ids = ingredients_tok['input_ids'].squeeze(0)
-        # attention_mask = ingredients_tok['attention_mask'].squeeze(0)
-
         # get calories and mass
         calories = row['total_calories']
-        # calories_per_g = row['calories_per_g']
         mass = row['total_mass']
 
         return{
             'id': image_id, 
             'image': image, 
-            # 'input_ids': input_ids, 
-            # 'attention_mask': attention_mask, 
             'calories': calories, 
-            # 'calories_per_g': calories_per_g, 
             'mass': mass
         }
 

@@ -12,8 +12,8 @@ from torch.utils.data import DataLoader, Subset
 from tqdm.auto import tqdm
 import yaml
 
-from dataset_new import MultimodalDataset
-from utils_new import MultimodalModel
+from dataset import MultimodalDataset
+from utils import MultimodalModel
 
 if __name__ == "__main__":
 
@@ -24,11 +24,6 @@ if __name__ == "__main__":
 
     with open(path_to_config, "r") as f:
         config_notebook = yaml.safe_load(f)
-    # config_notebook['hidden_dim'] = 256  # Явно задаем правильный размер
-
-    # ingredients_path = os.path.join(os.getcwd(), 'data', 'ingredients.csv')
-    # # загрузим таблицу ингредиентов
-    # ingredients = pd.read_csv(ingredients_path)
 
     dishes_test = joblib.load('imports/dishes_test.pkl')
     ds_test = joblib.load('imports/ds_test.pkl')
@@ -52,8 +47,7 @@ if __name__ == "__main__":
 
         # создаём пустой список для названий
         ingr_text = []
-        # Меняем ID на название, 
-        # добавляем название в 'ingr_text'. 
+        # меняем ID на название, добавляем название в 'ingr_text'
         for ingr in data: 
             ingr_text.append(ingredients_dict[int(ingr)])
 
@@ -120,22 +114,15 @@ if __name__ == "__main__":
         id = [item['id'] for item in batch]
         # фото
         images = torch.stack([item['image'] for item in batch])
-        # токенизированные названия ингредиентов и маска
-        # input_ids = torch.stack([item['input_ids'] for item in batch])
-        # attention_mask = torch.stack([item['attention_mask'] for item in batch])
-        # калорийность (абсолютная и на грамм веса)
+        # калорийность 
         calories = torch.FloatTensor([item['calories'] for item in batch])
-        # calories_per_g = torch.FloatTensor([item['calories_per_g'] for item in batch])
         # масса блюда
         mass = torch.FloatTensor([item['mass'] for item in batch])
 
         return{
             'id': id, 
             'image': images, 
-            # 'input_ids': input_ids, 
-            # 'attention_mask': attention_mask, 
             'calories': calories, 
-            # 'calories_per_g': calories_per_g, 
             'mass': mass
         }    
 
@@ -173,14 +160,16 @@ if __name__ == "__main__":
         with torch.no_grad():
             # проходим по батчам
             for _, batch in enumerate(
-                tqdm(test_loader, total=len(test_loader), leave=False, desc="test")
+                tqdm(
+                    test_loader, 
+                    total=len(test_loader), 
+                    leave=False, 
+                    display=True, 
+                    position=0, 
+                    desc="test")
                 ): 
                 # входные данные для работы моделей
-                inputs = {
-                    # 'input_ids': batch['input_ids'].to(DEVICE), 
-                    # 'attention_mask': batch['attention_mask'].to(DEVICE), 
-                    'image': batch['image'].to(DEVICE)
-                }
+                inputs = batch['image'].to(DEVICE)
                 # переменные для расчёта MAE
                 calories = batch['calories'].to(DEVICE)
                 mass = batch['mass'].to(DEVICE)
@@ -188,7 +177,7 @@ if __name__ == "__main__":
                 ids = batch['id']
 
                 # получим результат работы модели (калорийность на грамм)
-                result = model(**inputs)
+                result = model(inputs)
                 # print(len(result))
 
                 # рассчитаем калорийность блюда целиком
@@ -221,8 +210,6 @@ if __name__ == "__main__":
             results_df = results_df.sort_values(by='absolute_error', ascending=False)
 
             # рассчитываем MAE для тестового набора
-            # test_mae = sum(all_absolute_errors) / len(all_absolute_errors)
-            # test_mae = sum(list(itertools.chain.from_iterable(all_absolute_errors))) / len(all_absolute_errors)
             test_mae = np.mean(all_absolute_errors)
 
         results_worst = results_df.head()
@@ -253,7 +240,7 @@ if __name__ == "__main__":
         plt.axis('off')
         index += 1
     plt.tight_layout() 
-    plt.show()
+    plt.show();
 
     for bad_class in worst_classes:
         print(bad_class, ': ingredients')
