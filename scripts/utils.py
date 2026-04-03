@@ -3,7 +3,7 @@ import sys
 
 # from beeply import notes
 from functools import partial
-import itertools
+# import itertools
 import joblib
 import numpy as np
 import pandas as pd
@@ -157,7 +157,6 @@ def validate(model, val_loader, device):
                 val_loader, 
                 total=len(val_loader), 
                 leave=False, 
-                display=True, 
                 position=0, 
                 desc="validate")
             ): 
@@ -167,20 +166,16 @@ def validate(model, val_loader, device):
             calories = batch['calories'].to(device)
             mass = batch['mass'].to(device)
 
-            # получим результат работы модели (калорийность на грамм)
-            result = model(inputs)
+            # получим результат работы модели 
+            result = model(inputs).squeeze()
             # print(f"Result_val shape: {result.shape}") 
-
-            # рассчитаем калорийность блюда целиком
-            # results_total = result * mass
-            results_total = result
             # рассчитаем абсолютные отклонения
-            absolute_errors = torch.abs(results_total - calories)
+            absolute_errors = torch.abs(result - calories)
             # добавим рассчитанные абс. отклонения в список их значений по эпохе
             all_absolute_errors.extend(absolute_errors.tolist())
         
         # преобразуем список значений абсолютных отклонений так, чтобы не было вложений
-        all_absolute_errors = list(itertools.chain.from_iterable(all_absolute_errors))
+        # all_absolute_errors = list(itertools.chain.from_iterable(all_absolute_errors))
         # рассчитываем MAE для эпохи
         val_mae = sum(all_absolute_errors) / len(all_absolute_errors)
 
@@ -258,7 +253,6 @@ def train(config, train_dataset, val_dataset):
                 train_loader, 
                 total=len(train_loader), 
                 leave=False, 
-                display=True, 
                 position=0, 
                 desc=f"train epoch: {epoch + 1}"
                 )
@@ -273,8 +267,9 @@ def train(config, train_dataset, val_dataset):
             optimizer.zero_grad()
 
             # получим результат работы модели (калорийность на грамм)
-            result = model(inputs)
+            result = model(inputs).squeeze()
             # рассчитаем абсолютные отклонения
+            # print(f'Output shape is: {result.shape}; target shape is: {calories.shape}.')
             absolute_errors = torch.abs(result - calories)
             # добавим рассчитанные абс. отклонения в список их значений по эпохе
             all_absolute_errors.extend(absolute_errors.tolist())
@@ -290,7 +285,7 @@ def train(config, train_dataset, val_dataset):
             total_loss += loss.item()
 
         # преобразуем список значений абсолютных отклонений так, чтобы не было вложений
-        all_absolute_errors = list(itertools.chain.from_iterable(all_absolute_errors))
+        # all_absolute_errors = list(itertools.chain.from_iterable(all_absolute_errors))
         # рассчитываем MAE для эпохи
         train_mae = sum(all_absolute_errors) / len(all_absolute_errors)
 

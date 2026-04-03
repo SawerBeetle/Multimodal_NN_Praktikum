@@ -164,7 +164,6 @@ if __name__ == "__main__":
                     test_loader, 
                     total=len(test_loader), 
                     leave=False, 
-                    display=True, 
                     position=0, 
                     desc="test")
                 ): 
@@ -177,13 +176,10 @@ if __name__ == "__main__":
                 ids = batch['id']
 
                 # получим результат работы модели (калорийность на грамм)
-                result = model(inputs)
+                result = model(inputs).squeeze()
                 # print(len(result))
-
-                # рассчитаем калорийность блюда целиком
-                results_total = result.squeeze(-1) # * mass
                 # рассчитаем абсолютные отклонения
-                absolute_errors = torch.abs(results_total - calories)
+                absolute_errors = torch.abs(result - calories)
 
                 """  
                 Здесь добавим данные по набору в целом к соответствующим спискам, 
@@ -195,7 +191,7 @@ if __name__ == "__main__":
                 # реальная калорийность
                 all_calories.extend(calories.tolist())
                 # предсказанная калорийность
-                all_predicted_calories.extend(results_total.tolist())
+                all_predicted_calories.extend(result.tolist())
                 # абсолютные ошибки 
                 all_absolute_errors.extend(absolute_errors.tolist())
             
