@@ -1,7 +1,6 @@
-mode: 'preliminar'
+mode: 'train'
 seed: 42
 image_model: 'resnet50'
-text_lr: 3e-2
 image_lr: 1e-1
 regressor_lr: 5e-1
 epochs: 100
